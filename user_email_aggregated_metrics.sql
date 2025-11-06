@@ -1,4 +1,4 @@
--- 1) Retrieve the latest known country for each account based on sessions
+-- Retrieve the latest known country for each account based on sessions
 WITH session_country AS (
  SELECT
    asn.account_id,
@@ -16,7 +16,7 @@ account_country AS (
  WHERE rn = 1
 ),
 
--- 2) Determine the account creation date (date of the first session)
+-- Determine the account creation date
 account_first_session AS (
  SELECT
    asn.account_id,
@@ -26,7 +26,7 @@ account_first_session AS (
  GROUP BY asn.account_id
 ),
 
--- 3) Create a dimensional base for accounts with their key attributes
+-- Create a dimensional base for accounts
 accounts_dim AS (
  SELECT
    afs.created_date             AS date,      -- Account creation date (for aggregation)
@@ -40,7 +40,7 @@ accounts_dim AS (
  JOIN account_first_session afs ON afs.account_id = a.id
 ),
 
--- 4) Aggregate account creation events based on dimensions
+-- Aggregate account creation events based on dimensions
 accounts_metrics AS (
  SELECT
    date, country, send_interval, is_verified, is_unsubscribed,
@@ -50,7 +50,7 @@ accounts_metrics AS (
  GROUP BY date, country, send_interval, is_verified, is_unsubscribed
 ),
 
--- 5) Create the base for email analysis (sent messages)
+-- Create the base for email analysis
 emails_base AS (
  SELECT
    ad.date + INTERVAL es.sent_date DAY AS sent_day, -- Calculate the actual sending date
@@ -65,7 +65,7 @@ emails_base AS (
    ON ad.account_id = es.id_account
 ),
 
--- 6) Enrich email data with open and visit status
+-- Enrich email data with open and visit status
 emails_dim AS (
  SELECT
    eb.sent_day        AS date, -- Use the email sent date for aggregation
@@ -83,7 +83,7 @@ emails_dim AS (
    ON ev.id_message = eb.id_message
 ),
 
--- 7) Aggregate email metrics (sent, open, visit) based on dimensions
+-- Aggregate email metrics based on dimensions
 emails_metrics AS (
  SELECT
    date, country, send_interval, is_verified, is_unsubscribed,
@@ -95,7 +95,7 @@ emails_metrics AS (
  GROUP BY date, country, send_interval, is_verified, is_unsubscribed
 ),
 
--- 8) Combine account creation and email metrics into a single dataset and aggregate totals
+-- Combine account creation and email metrics into a single dataset and aggregate totals
 combined AS (
  SELECT * FROM accounts_metrics
  UNION ALL
@@ -112,7 +112,7 @@ aggregated AS (
  GROUP BY date, country, send_interval, is_verified, is_unsubscribed
 ),
 
--- 9) Calculate total account and sent message counts per country (Window Function)
+-- Calculate total account and sent message counts per country
 with_totals AS (
  SELECT
    a.*,
@@ -121,7 +121,7 @@ with_totals AS (
  FROM aggregated a
 ),
 
--- 10) Rank countries based on total accounts and total sent messages
+-- Rank countries based on total accounts and total sent messages
 with_ranks AS (
  SELECT
    wt.*,
@@ -130,7 +130,7 @@ with_ranks AS (
  FROM with_totals wt
 )
 
--- 11) Final selection, filtering results to the Top 10 countries by accounts OR sent messages
+-- Final selection, filtering results to the Top 10 countries by accounts OR sent messages
 SELECT
  date,
  country,
